@@ -79,6 +79,8 @@ void Label3D::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("get_total_character_count"), &Label3D::get_total_character_count);
 
+	ClassDB::bind_method(D_METHOD("get_character_position", "character"), &Label3D::get_character_position);
+
 	ClassDB::bind_method(D_METHOD("set_visible_characters", "amount"), &Label3D::set_visible_characters);
 	ClassDB::bind_method(D_METHOD("get_visible_characters"), &Label3D::get_visible_characters);
 
@@ -87,6 +89,9 @@ void Label3D::_bind_methods() {
 
 	ClassDB::bind_method(D_METHOD("set_visible_characters_behavior", "behavior"), &Label3D::set_visible_characters_behavior);
 	ClassDB::bind_method(D_METHOD("get_visible_characters_behavior"), &Label3D::get_visible_characters_behavior);
+
+	ClassDB::bind_method(D_METHOD("set_start_of_characters", "amount"), &Label3D::set_start_of_characters);
+	ClassDB::bind_method(D_METHOD("get_start_of_characters"), &Label3D::get_start_of_characters);
 
 	ClassDB::bind_method(D_METHOD("set_outline_size", "outline_size"), &Label3D::set_outline_size);
 	ClassDB::bind_method(D_METHOD("get_outline_size"), &Label3D::get_outline_size);
@@ -182,6 +187,7 @@ void Label3D::_bind_methods() {
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "visible_characters", PROPERTY_HINT_RANGE, "-1,128000,1"), "set_visible_characters", "get_visible_characters");
 	ADD_PROPERTY(PropertyInfo(Variant::INT, "visible_characters_behavior", PROPERTY_HINT_ENUM, "Characters Before Shaping:0,Characters After Shaping:1,Glyphs (Left-to-Right):3,Glyphs (Right-to-Left):4"), "set_visible_characters_behavior", "get_visible_characters_behavior");
 	ADD_PROPERTY(PropertyInfo(Variant::FLOAT, "visible_ratio", PROPERTY_HINT_RANGE, "0,1,0.001"), "set_visible_ratio", "get_visible_ratio");
+	ADD_PROPERTY(PropertyInfo(Variant::INT, "start_of_characters", PROPERTY_HINT_RANGE, "-1,128000,1"), "set_start_of_characters", "get_start_of_characters");
 
 	BIND_ENUM_CONSTANT(FLAG_SHADED);
 	BIND_ENUM_CONSTANT(FLAG_DOUBLE_SIDED);
@@ -355,7 +361,7 @@ bool Label3D::_is_glyph_visible(const Glyph &p_glyph, int p_index, int p_total_g
 		int visible_glyphs = (p_total_glyphs)*visible_ratio;
 		return visible_characters == -1 || visible_glyphs >= abs((p_index)-p_total_glyphs);
 	} else {
-		return visible_characters == -1 || visible_characters >= p_glyph.end;
+		return (visible_characters == -1 || visible_characters >= p_glyph.end) && (start_of_characters == -1 || p_glyph.start >= start_of_characters);
 	}
 }
 
@@ -955,6 +961,70 @@ int Label3D::get_total_character_count() const {
 	return xl_text.length();
 }
 
+Vector2 Label3D::get_character_position(int p_char_idx) {
+	float total_h = 0.0;
+	for (int i = 0; i < lines_rid.size(); i++) {
+		total_h += (TS->shaped_text_get_size(lines_rid[i]).y + line_spacing) * pixel_size;
+	}
+
+	float vbegin = 0.0;
+	switch (vertical_alignment) {
+		case VERTICAL_ALIGNMENT_FILL:
+		case VERTICAL_ALIGNMENT_TOP: {
+			// Nothing.
+		} break;
+		case VERTICAL_ALIGNMENT_CENTER: {
+			vbegin = (total_h - line_spacing * pixel_size) / 2.0;
+		} break;
+		case VERTICAL_ALIGNMENT_BOTTOM: {
+			vbegin = (total_h - line_spacing * pixel_size);
+		} break;
+	}
+
+	Vector2 offset = Vector2(0, vbegin + lbl_offset.y * pixel_size);
+	int accumulated_index = 0;
+
+	for (int i = 0; i < lines_rid.size(); i++) {
+		const Glyph *glyphs = TS->shaped_text_get_glyphs(lines_rid[i]);
+		int gl_size = TS->shaped_text_get_glyph_count(lines_rid[i]);
+		float line_width = TS->shaped_text_get_width(lines_rid[i]) * pixel_size;
+
+		switch (horizontal_alignment) {
+			case HORIZONTAL_ALIGNMENT_LEFT:
+				offset.x = 0.0;
+				break;
+			case HORIZONTAL_ALIGNMENT_FILL:
+			case HORIZONTAL_ALIGNMENT_CENTER: {
+				offset.x = -line_width / 2.0;
+			} break;
+			case HORIZONTAL_ALIGNMENT_RIGHT: {
+				offset.x = -line_width;
+			} break;
+		}
+		offset.x += lbl_offset.x * pixel_size;
+
+		offset.y -= TS->shaped_text_get_ascent(lines_rid[i]) * pixel_size;
+
+		for (int j = 0; j < gl_size; j++) {
+			if (p_char_idx == j + accumulated_index) {
+				return offset;
+			}
+
+			offset.x += glyphs[j].advance * pixel_size;
+		}
+
+		offset.y -= (TS->shaped_text_get_descent(lines_rid[i]) + line_spacing) * pixel_size;
+		accumulated_index += gl_size + 1;
+
+		if ((line_width * 2 < width * pixel_size || autowrap_mode == TS->AUTOWRAP_OFF) && TS->shaped_text_has_visible_chars(lines_rid[i])) {
+			//This means that the line is created using \n
+			accumulated_index++;
+		}
+	}
+
+	return Vector2(0, 0);
+}
+
 void Label3D::set_visible_characters_behavior(TextServer::VisibleCharactersBehavior p_behavior) {
 	if (visible_chars_behavior != p_behavior) {
 		visible_chars_behavior = p_behavior;
@@ -1000,6 +1070,18 @@ void Label3D::set_visible_ratio(float p_ratio) {
 			visible_characters = get_total_character_count() * p_ratio;
 			visible_ratio = p_ratio;
 		}
+		dirty_text = true;
+		_queue_update();
+	}
+}
+
+int Label3D::get_start_of_characters() const {
+	return start_of_characters;
+}
+
+void Label3D::set_start_of_characters(int p_amount) {
+	if (start_of_characters != p_amount) {
+		start_of_characters = p_amount;
 		dirty_text = true;
 		_queue_update();
 	}

@@ -131,6 +131,7 @@ private:
 	TextServer::VisibleCharactersBehavior visible_chars_behavior = TextServer::VC_CHARS_BEFORE_SHAPING;
 	int visible_characters = -1;
 	float visible_ratio = 1.0;
+	int start_of_characters = -1;
 
 	String language;
 	TextServer::Direction text_direction = TextServer::DIRECTION_AUTO;
@@ -216,7 +217,12 @@ public:
 	void set_visible_ratio(float p_ratio);
 	float get_visible_ratio() const;
 
+	void set_start_of_characters(int p_amount);
+	int get_start_of_characters() const;
+
 	int get_total_character_count() const;
+
+	Vector2 get_character_position(int p_char_idx);
 
 	void set_outline_size(int p_size);
 	int get_outline_size() const;
