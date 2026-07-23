@@ -41,8 +41,14 @@ jobs:
             compiler: clang
 
           - name: Template (target=template_release)
-            cache-name: windows-template
+            cache-name: windows-template-32-release
             target: template_release
+            bin: ./bin/godot.windows.template_release.x86_32.console.exe
+            compiler: msvc
+
+          - name: Template (target=template_debug)
+            cache-name: windows-template-32-debug
+            target: template_debug
             bin: ./bin/godot.windows.template_release.x86_32.console.exe
             compiler: msvc
 
