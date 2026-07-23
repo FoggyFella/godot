@@ -11,8 +11,8 @@ on:
 # Global Settings
 env:
   SCONS_FLAGS: >-
-    dev_mode=yes
     module_text_server_fb_enabled=yes
+    debug_symbols=no
   GODOT_CPP_BRANCH: 4.5
   DOTNET_NOLOGO: true
   DOTNET_CLI_TELEMETRY_OPTOUT: true
@@ -140,6 +140,7 @@ jobs:
       - name: Setup dependencies
         run: |
           sudo apt-get update
+          sudo apt-get install gcc-multilib g++-multilib
           sudo apt-get install libwayland-bin  # TODO: Figure out somehow how to embed this one.
           if [ "${{ matrix.proj-test }}" == "true" -o "${{ matrix.proj-export }}" == "true" ]; then
             sudo apt-get install mesa-vulkan-drivers
