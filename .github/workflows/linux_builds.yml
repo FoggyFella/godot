@@ -94,6 +94,20 @@ jobs:
             bin: ./bin/godot.linuxbsd.template_release.x86_64.mono
             artifact: true
 
+          - name: Release Template 64 bit
+            cache-name: linux-template-release-64
+            target: template_release
+            scons-flags: arch=x86_64
+            bin: ./bin/godot.linuxbsd.template_release.x86_64
+            artifact: true
+
+          - name: Release Template 32 bit
+            cache-name: linux-template-release-32
+            target: template_release
+            scons-flags: arch=x86_32
+            bin: ./bin/godot.linuxbsd.template_release.x86_32
+            artifact: true
+
           - name: Template w/ Mono, debug (target=template_debug)
             cache-name: linux-template-mono-debug
             target: template_debug
